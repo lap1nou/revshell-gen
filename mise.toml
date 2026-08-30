@@ -1,0 +1,19 @@
+[hooks]
+enter = "mise i -q && uv sync"
+
+[tools]
+ruff = "latest"
+uv = "latest"
+python = "3.13"
+
+[tasks]
+lint = "ruff format . && ruff check ."
+test = "uv run pytest"
+
+[tasks.debug]
+description = ""
+run = '''
+echo "[*] Please run the 'poetry run textual console -x EVENT -x DEBUG -x SYSTEM' command"
+
+uv run textual run --dev revshell_gen/app.py
+'''

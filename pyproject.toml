@@ -1,0 +1,60 @@
+[project]
+name = "revshell-gen"
+version = "0.1.0"
+description = "A TUI / CLI reverse shell one-liner generator (revshells.com, offline, in your terminal)."
+authors = [{ name = "lap1nou" }]
+requires-python = ">=3.11,<4"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+dependencies = [
+    "rich>=14.2.0,<15",
+    "textual>=6.6.0,<7",
+    "pyperclip>=1.9.0,<2",
+    "psutil>=7.0.0,<8",
+    "argcomplete>=3.1.4,<4",
+]
+
+[project.scripts]
+revshell-gen = "revshell_gen.__main__:main"
+
+[dependency-groups]
+dev = [
+    "pytest==8.3.4",
+    "pytest-asyncio==0.25.2",
+    "pytest-cov==6.1.1",
+    "textual-dev==1.7.0",
+]
+
+[tool.uv]
+default-groups = "all"
+exclude-newer = "2 weeks"
+
+[tool.uv.build-backend]
+module-name = "revshell_gen"
+module-root = ""
+
+[build-system]
+requires = ["uv_build>=0.11.7,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.ruff.lint.extend-per-file-ignores]
+"revshell_gen/tests/*" = ["F811"]
+# Textual's App class attributes (BINDINGS, DEFAULT_CSS, ...) are the
+# framework's own convention for mutable class-level config.
+"revshell_gen/app.py" = ["RUF012"]
+
+[tool.pytest.ini_options]
+addopts = "-v --cov=revshell_gen"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.coverage.run]
+omit = ["revshell_gen/tests/*", "revshell_gen/__main__.py"]
+
+[tool.coverage.report]
+show_missing = true

