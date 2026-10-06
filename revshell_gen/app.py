@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pyperclip
+import sys
 from textual import events
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -267,10 +268,10 @@ class RevshellApp(App):
             return
         try:
             pyperclip.copy(self._current_command)
-            self.notify("Copied to clipboard!")
         except pyperclip.PyperclipException:
             self.notify("Could not access the clipboard on this system.", severity="error")
 
+        sys.exit(0)
 
 def main() -> None:
     RevshellApp().run()
