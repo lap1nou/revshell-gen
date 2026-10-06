@@ -43,6 +43,7 @@ ID_SEARCH = "search"
 ID_TABLE = "table"
 ID_FORM = "form"
 ID_IP_SELECT = "ip_select"
+ID_CUSTOM_IP = "custom_ip"
 ID_PORT = "port"
 ID_ENCODING = "encoding"
 ID_PREVIEW_CONTAINER = "preview_container"
@@ -52,6 +53,11 @@ ID_COPY_BUTTON = "copy_button"
 
 CLASS_LABEL = "label"
 CLASS_ERROR = "error"
+# Toggled on the custom-IP Input so it only takes up vertical space (and only
+# feeds the preview) while "Custom (type below)" is the selected IP option.
+CLASS_HIDDEN = "hidden"
+
+CUSTOM_IP_PLACEHOLDER = "e.g. 10.10.14.5 or myhost.example.com"
 
 
 class PayloadsTable(DataTable):
@@ -113,6 +119,11 @@ class RevshellApp(App):
             with Vertical(id=ID_FORM):
                 yield Static("Attacker IP", classes=CLASS_LABEL)
                 yield Select(self._ip_options(), id=ID_IP_SELECT, allow_blank=False)
+                yield Input(
+                    placeholder=CUSTOM_IP_PLACEHOLDER,
+                    id=ID_CUSTOM_IP,
+                    classes=CLASS_HIDDEN,
+                )
                 yield Static("Port", classes=CLASS_LABEL)
                 yield Input(value="4444", placeholder="4444", id=ID_PORT)
                 yield Static("Encoding", classes=CLASS_LABEL)
@@ -163,8 +174,20 @@ class RevshellApp(App):
         else:
             self._refresh_preview()
 
-    def on_select_changed(self, _event: Select.Changed) -> None:
+    def on_select_changed(self, event: Select.Changed) -> None:
+        if event.select.id == ID_IP_SELECT:
+            self._sync_custom_ip_visibility()
         self._refresh_preview()
+
+    def _sync_custom_ip_visibility(self) -> None:
+        """Show the free-text IP field only while the "Custom" option is
+        selected, and move focus to it so the user can start typing right
+        away."""
+        is_custom = self.query_one(f"#{ID_IP_SELECT}", Select).value == CUSTOM_IP_VALUE
+        custom_ip = self.query_one(f"#{ID_CUSTOM_IP}", Input)
+        custom_ip.set_class(not is_custom, CLASS_HIDDEN)
+        if is_custom:
+            custom_ip.focus()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == ID_COPY_BUTTON:
@@ -208,8 +231,14 @@ class RevshellApp(App):
             return
 
         ip_select = self.query_one(f"#{ID_IP_SELECT}", Select)
-        ip = ip_select.value
-        if ip == CUSTOM_IP_VALUE or not ip:
+        if ip_select.value == CUSTOM_IP_VALUE:
+            # The custom IP is fed straight into generate() as the `ip`
+            # argument, so it lands in the rendered payload *before* any
+            # encoding transformation is applied.
+            ip = self.query_one(f"#{ID_CUSTOM_IP}", Input).value.strip()
+        else:
+            ip = ip_select.value
+        if not ip:
             ip = "<your-ip>"
 
         port_raw = self.query_one(f"#{ID_PORT}", Input).value

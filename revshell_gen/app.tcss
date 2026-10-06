@@ -43,6 +43,12 @@ Screen {
     margin-bottom: 1;
 }
 
+/* Collapse the custom-IP field entirely (no residual margin/row) unless the
+ * "Custom (type below)" IP option is selected. */
+#form .hidden {
+    display: none;
+}
+
 #preview_container {
     height: auto;
     border: round $accent;

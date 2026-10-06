@@ -6,8 +6,10 @@ import pytest
 from textual.widgets import Input, Select
 
 from revshell_gen.app import (
+    CLASS_HIDDEN,
     CUSTOM_IP_VALUE,
     ID_COPY_BUTTON,
+    ID_CUSTOM_IP,
     ID_ENCODING,
     ID_FORM,
     ID_IP_SELECT,
@@ -160,7 +162,40 @@ async def test_changing_encoding_updates_preview(app):
             assert "bash" not in app._current_command
 
 
-async def test_custom_ip_falls_back_to_placeholder(app):
+async def test_custom_ip_field_is_hidden_until_custom_is_selected(app):
+    async with app.run_test(size=SIZE) as pilot:
+        await pilot.pause()
+        custom_ip = app.query_one(f"#{ID_CUSTOM_IP}", Input)
+        # Hidden on startup (a real interface is selected by default).
+        assert custom_ip.has_class(CLASS_HIDDEN)
+        assert custom_ip.display is False
+
+        ip_select = app.query_one(f"#{ID_IP_SELECT}", Select)
+        ip_select.value = CUSTOM_IP_VALUE
+        await pilot.pause()
+
+        assert not custom_ip.has_class(CLASS_HIDDEN)
+        assert custom_ip.display is True
+
+
+async def test_custom_ip_field_hides_again_when_leaving_custom(app):
+    async with app.run_test(size=SIZE) as pilot:
+        await pilot.pause()
+        ip_select = app.query_one(f"#{ID_IP_SELECT}", Select)
+        custom_ip = app.query_one(f"#{ID_CUSTOM_IP}", Input)
+
+        ip_select.value = CUSTOM_IP_VALUE
+        await pilot.pause()
+        assert not custom_ip.has_class(CLASS_HIDDEN)
+
+        # Pick the first non-custom option again.
+        non_custom_value = next(v for _, v in app._ip_options() if v != CUSTOM_IP_VALUE)
+        ip_select.value = non_custom_value
+        await pilot.pause()
+        assert custom_ip.has_class(CLASS_HIDDEN)
+
+
+async def test_custom_ip_falls_back_to_placeholder_when_field_is_empty(app):
     async with app.run_test(size=SIZE) as pilot:
         await pilot.pause()
         ip_select = app.query_one(f"#{ID_IP_SELECT}", Select)
@@ -168,6 +203,60 @@ async def test_custom_ip_falls_back_to_placeholder(app):
         await pilot.pause()
 
         assert "<your-ip>" in app._current_command
+
+
+async def test_typed_custom_ip_is_placed_in_the_payload(app):
+    async with app.run_test(size=SIZE) as pilot:
+        await pilot.pause()
+        ip_select = app.query_one(f"#{ID_IP_SELECT}", Select)
+        ip_select.value = CUSTOM_IP_VALUE
+        await pilot.pause()
+
+        custom_ip = app.query_one(f"#{ID_CUSTOM_IP}", Input)
+        custom_ip.value = "10.10.14.5"
+        await pilot.pause()
+
+        assert app._current_command_is_valid
+        assert "10.10.14.5" in app._current_command
+        assert "<your-ip>" not in app._current_command
+        assert app._current_command == app.selected_template.render(ip="10.10.14.5", port=4444)
+
+
+async def test_custom_ip_is_applied_before_encoding(app):
+    """The custom IP must be substituted into the raw payload *before* any
+    encoding transformation, i.e. it should round-trip through base64."""
+    import base64
+
+    async with app.run_test(size=SIZE) as pilot:
+        await pilot.pause()
+        ip_select = app.query_one(f"#{ID_IP_SELECT}", Select)
+        ip_select.value = CUSTOM_IP_VALUE
+        await pilot.pause()
+
+        app.query_one(f"#{ID_CUSTOM_IP}", Input).value = "10.10.14.5"
+        app.query_one(f"#{ID_ENCODING}", Select).value = Encoding.BASE64.value
+        await pilot.pause()
+
+        assert app._current_command_is_valid
+        # The encoded form hides the IP...
+        assert "10.10.14.5" not in app._current_command
+        # ...but decoding reveals it, proving it was placed pre-transform.
+        decoded = base64.b64decode(app._current_command).decode()
+        assert "10.10.14.5" in decoded
+
+
+async def test_custom_hostname_is_accepted(app):
+    async with app.run_test(size=SIZE) as pilot:
+        await pilot.pause()
+        ip_select = app.query_one(f"#{ID_IP_SELECT}", Select)
+        ip_select.value = CUSTOM_IP_VALUE
+        await pilot.pause()
+
+        app.query_one(f"#{ID_CUSTOM_IP}", Input).value = "myhost.example.com"
+        await pilot.pause()
+
+        assert app._current_command_is_valid
+        assert "myhost.example.com" in app._current_command
 
 
 async def test_copy_action_sends_current_command_to_clipboard(app):
