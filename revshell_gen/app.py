@@ -11,6 +11,7 @@ from textual.message import Message
 from textual.reactive import reactive
 from textual.widgets import Button, DataTable, Footer, Header, Input, Select, Static
 from textual.widgets.data_table import RowKey
+from textual.keys import Keys
 
 from revshell_gen.generator import Encoding, InvalidIPError, InvalidPortError, generate
 from revshell_gen.network import list_ipv4_addresses
@@ -92,8 +93,8 @@ class RevshellApp(App):
     CSS_PATH = Path(__file__).parent / "app.tcss"
 
     BINDINGS = [
-        Binding("c", "copy", "Copy command"),
-        Binding("q", "quit", "Quit"),
+        Binding(Keys.F1, "copy", "Copy command"),
+        Binding(Keys.ControlC, "quit", "Quit", show=False, priority=True),
         Binding("/", "focus_search", "Search"),
     ]
 

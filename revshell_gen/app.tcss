@@ -36,6 +36,7 @@ Screen {
     height: 1fr;
     border: round $primary;
     padding: 1;
+    overflow-y: auto;
 }
 
 #form Input,
